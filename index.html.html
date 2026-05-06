@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Куратора AOGU - Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #4361ee; --bg: #f0f2f5; --card: #ffffff; --text: #2b2d42; --subtext: #64748b; --wa: #2ecc71; --call: #3498db; --danger: #ef4444; --gold: #f59e0b; }
+        [data-theme="dark"] { --bg: #1a1c1e; --card: #2d2f31; --text: #e2e8f0; --subtext: #94a3b8; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; padding-bottom: 100px; transition: 0.3s; }
+        .container { max-width: 600px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logo-box { display: flex; align-items: center; gap: 15px; }
+        .logo { width: 50px; border-radius: 10px; }
+        .theme-toggle { background: var(--card); border: none; width: 40px; height: 40px; border-radius: 10px; color: var(--text); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .search-input { width: 100%; padding: 15px; border-radius: 12px; border: none; background: var(--card); color: var(--text); box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 15px; outline: none; font-size: 16px; box-sizing: border-box; }
+        .stats-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 5px; }
+        .count-tag { font-size: 13px; font-weight: 700; color: var(--subtext); }
+        .tabs { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 20px; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab-btn { padding: 10px 18px; background: var(--card); border: none; border-radius: 10px; cursor: pointer; color: var(--subtext); font-weight: bold; white-space: nowrap; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .student-card { background: var(--card); border-radius: 15px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .name-info { display: flex; align-items: center; gap: 12px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
+        .dot-starosta { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+        .dot-zam { background: var(--wa); box-shadow: 0 0 8px var(--wa); }
+        .actions { display: flex; gap: 6px; }
+        .btn { width: 35px; height: 35px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; color: white; text-decoration: none; cursor: pointer; }
+        .btn-wa { background: var(--wa); } .btn-call { background: var(--call); } .btn-del { background: var(--danger); }
+        .special-link { display: flex; align-items: center; justify-content: center; gap: 15px; background: var(--wa); color: white; padding: 20px; border-radius: 20px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+        .add-box { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; display: flex; gap: 10px; background: var(--card); padding: 10px; border-radius: 15px; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); z-index: 1000; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="logo-box">
+            <img src="123.png" class="logo" alt="AOGU">
+            <h2 style="margin: 0; font-size: 18px;">AOGU Manager</h2>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn"><i class="fas fa-moon"></i></button>
+    </div>
+
+    <input type="text" id="search" class="search-input" placeholder="Поиск студента..." oninput="render()">
+
+    <div class="stats-bar">
+        <span class="count-tag" id="countLabel">Загрузка...</span>
+        <button onclick="copyList()" style="background:none; border:1px solid var(--primary); color:var(--primary); padding:5px 10px; border-radius:8px; font-size:12px; cursor:pointer;">Копировать список</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="setTab('aiup', this)">АиУП-25</button>
+        <button class="tab-btn" onclick="setTab('ib', this)">ИБ-25</button>
+        <button class="tab-btn" onclick="setTab('ksru', this)">КСУиР-25</button>
+        <button class="tab-btn" onclick="setTab('is', this)">ИСвНГО-25</button>
+        <button class="tab-btn" onclick="setTab('bakt', this)">БаИКТ-25</button>
+        <button class="tab-btn" onclick="setTab('special', this)" style="color: var(--gold); border: 1px solid var(--gold);">Чат Старост</button>
+    </div>
+
+    <div id="list"></div>
+
+    <div class="add-box" id="addBox">
+        <input type="text" id="newName" style="flex:1; padding:12px; border-radius:10px; border:1px solid #e2e8f0; outline:none; background: transparent; color: inherit;" placeholder="ФИО студента">
+        <button onclick="addStudent()" style="padding:0 20px; background:var(--primary); color:white; border-radius:10px; border:none; font-weight:bold; cursor:pointer;"><i class="fas fa-plus"></i></button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyD_8gMYfswVSDxYIe17pfxVHNFfeMhMDvo",
+        authDomain: "aogu-manager.firebaseapp.com",
+        projectId: "aogu-manager",
+        storageBucket: "aogu-manager.firebasestorage.app",
+        messagingSenderId: "935762586742",
+        appId: "1:935762586742:web:38a517be973898d84e4357",
+        measurementId: "G-6JT5TKMWTY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'aogu_data');
+
+    const defaultData = {
+        aiup: [
+            {name: "Қадір Бекзат Қанатқалиұлы", role: "Староста", phone: "77752039345", type: "starosta"},
+            {name: "Қаршығаұлы Бекасыл", role: "Зам. старосты", phone: "77788562088", type: "zam"},
+            {name: "Темірғали Меддина Махмұтқызы", role: "Зам. старосты", phone: "77082794181", type: "zam"},
+            {name: "Таңат Сұлтанби Жеңісұлы", role: "Студент", type: "student"},
+            {name: "Асқар Арман Асхатұлы", role: "Студент", type: "student"},
+            {name: "Базарғали Абдрахим Алпамысұлы", role: "Студент", type: "student"},
+            {name: "Ельжанов Саламат Тимурович", role: "Студент", type: "student"},
+            {name: "Ерік Дәурен", role: "Студент", type: "student"},
+            {name: "Жүсіп Мұстахим Әлібекұлы", role: "Студент", type: "student"},
+            {name: "Жұмаш Ерасыл Жұмажанұлы", role: "Студент", type: "student"},
+            {name: "Зинолла Бекзат Азаматұлы", role: "Студент", type: "student"},
+            {name: "Ізбасар Олжас Қазбекұлы", role: "Студент", type: "student"},
+            {name: "Калымов Манас Берикович", role: "Студент", type: "student"},
+            {name: "Кафизов Амандык", role: "Студент", type: "student"},
+            {name: "Кенжемуратов Аймурат Кулжанович", role: "Студент", type: "student"},
+            {name: "Койшибаев Ержан Орынбасарович", role: "Студент", type: "student"},
+            {name: "Куранбаев Батир Рахимбоевич", role: "Студент", type: "student"},
+            {name: "Қабен Диас Айболатұлы", role: "Студент", type: "student"},
+            {name: "Қадыр Мирас Махамбетұлы", role: "Студент", type: "student"},
+            {name: "Қалыбай Қайсар Нұрболұлы", role: "Студент", type: "student"},
+            {name: "Қобыландыұлы Мансур Қобыландыұлы", role: "Студент", type: "student"},
+            {name: "Құрал Еркебұлан Рүстемұлы", role: "Студент", type: "student"},
+            {name: "Мажитов Алихан Бекзатович", role: "Студент", type: "student"},
+            {name: "Манарбек Арсен Манарбекұлы", role: "Студент", type: "student"},
+            {name: "Марат Айдар Эльдарұлы", role: "Студент", type: "student"},
+            {name: "Мурзагалиев Расул Сабитович", role: "Студент", type: "student"},
+            {name: "Нурланов Оспан Русланович", role: "Студент", type: "student"},
+            {name: "Орынғали Нұрсат Махсотұлы", role: "Студент", type: "student"},
+            {name: "Өтепберген Нұрәли Нұрланұлы", role: "Студент", type: "student"},
+            {name: "Сагинтаев Ислам Зангарович", role: "Студент", type: "student"},
+            {name: "Салахиден Абдулрохман Серікұлы", role: "Студент", type: "student"},
+            {name: "Сахи Диас Айғалиұлы", role: "Студент", type: "student"},
+            {name: "Сембай Досали Әлібекұлы", role: "Студент", type: "student"},
+            {name: "Төлеген Алишер Еркінбекұлы", role: "Студент", type: "student"},
+            {name: "Тұяқбай Ақаман Амангелдіұлы", role: "Студент", type: "student"},
+            {name: "Хабер Нұрдәулет Нұртасұлы", role: "Студент", type: "student"},
+            {name: "Хасан Абдулмансур Кенжебекұлы", role: "Студент", type: "student"}
+        ],
+        ib: [
+            {name: "Қапаш Нұрай", role: "Староста", phone: "77784939424", type: "starosta"},
+            {name: "Оңғар Сәбиназ", role: "Зам. старосты", phone: "77025138856", type: "zam"},
+            {name: "Болатұлы Әмір", role: "Студент", type: "student"},
+            {name: "Ғалым Ануар", role: "Студент", type: "student"},
+            {name: "Жалгасов Алинур", role: "Студент", type: "student"},
+            {name: "Жолдасов Бекзат", role: "Студент", type: "student"},
+            {name: "Қайырбек Данат", role: "Студент", type: "student"},
+            {name: "Нұрлыбек Бекалы", role: "Студент", type: "student"},
+            {name: "Салауат Төребек", role: "Студент", type: "student"},
+            {name: "Алпысбай Мейірхан", role: "Студент", type: "student"},
+            {name: "Асқар Айдын", role: "Студент", type: "student"},
+            {name: "Бағытжан Дінмұхаммед", role: "Студент", type: "student"},
+            {name: "Бақтығали Ырысгүл", role: "Студент", type: "student"},
+            {name: "Дүйсенбек Алмас", role: "Студент", type: "student"},
+            {name: "Ертаев Адилет", role: "Студент", type: "student"},
+            {name: "Нұрболұлы Дарын", role: "Студент", type: "student"},
+            {name: "Нығметолла Жарасқан", role: "Студент", type: "student"},
+            {name: "Орынбеков Нурболат", role: "Студент", type: "student"},
+            {name: "Құмар Габит", role: "Студент", type: "student"},
+            {name: "Оңғарбекұлы Қуаныш", role: "Студент", type: "student"},
+            {name: "Тлеуғали Даниял Берікұлы", role: "Студент", type: "student"},
+            {name: "Бақытов Нұрбек", role: "Студент", type: "student"},
+            {name: "Ұсақбай Аэлита", role: "Студент", type: "student"},
+            {name: "Ануарбеков Мансур", role: "Студент", type: "student"},
+            {name: "Курмангазиев Ансар", role: "Студент", type: "student"},
+            {name: "Кенжебай Ырысжан", role: "Студент", type: "student"},
+            {name: "Рысқали Рахим", role: "Студент", type: "student"},
+            {name: "Ибрай Илияс", role: "Студент", type: "student"},
+            {name: "Жақсыбайев Медет", role: "Студент", type: "student"},
+            {name: "Сәкенқызы Жанерке", role: "Студент", type: "student"}
+        ],
+        ksru: [
+            {name: "Саматқызы Гүлім", role: "Староста", phone: "77711141488", type: "starosta"},
+            {name: "Маратов Мирас Ғалымжанұлы", role: "Студент", type: "student"},
+            {name: "Серекбаева Нурсулу Тимур Кызы", role: "Студент", type: "student"},
+            {name: "Бисенғали Бекзат Қуанышұлы", role: "Студент", type: "student"}
+        ],
+        is: [
+            {name: "Ерболқызы Жаннұр", role: "Староста", phone: "77780808315", type: "starosta"},
+            {name: "Гамлетұлы Нұрхан", role: "Студент", type: "student"},
+            {name: "Ибрай Илияс Асқарұлы", role: "Студент", type: "student"},
+            {name: "Исмагулов Алмаз", role: "Студент", type: "student"},
+            {name: "Сайлауғали Искандер Азаматұлы", role: "Студент", type: "student"},
+            {name: "Белгиев Аян Нурбекович", role: "Студент", type: "student"},
+            {name: "Қожас Ерасыл Сатыбалдыұлы", role: "Студент", type: "student"},
+            {name: "Таджибаев Рахат Мурадович", role: "Студент", type: "student"}
+        ],
+        bakt: [
+            {name: "Бекқалы Аяна Қайратқызы", role: "Староста", phone: "77781815740", type: "starosta"},
+            {name: "Ерболат Мадина Нұрланқызы", role: "Зам. старосты", phone: "77023271708", type: "zam"},
+            {name: "Нуржигитов Қамбар Жумабекұлы", role: "Студент", type: "student"},
+            {name: "Жомарт Алтай Асхатұлы", role: "Студент", type: "student"}
+        ]
+    };
+
+    let groups = defaultData;
+    let currentTab = 'aiup';
+
+    onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            groups = data;
+            render();
+        } else {
+            set(dbRef, defaultData);
+        }
+    });
+
+    window.setTab = (id, el) => {
+        currentTab = id;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('addBox').style.display = (id === 'special') ? 'none' : 'flex';
+        render();
+    };
+
+    window.render = () => {
+        const list = document.getElementById('list');
+        const query = document.getElementById('search').value.toLowerCase();
+        list.innerHTML = "";
+
+        if (currentTab === 'special') {
+            list.innerHTML = `<a href="https://chat.whatsapp.com/DJk46sEJoUN07MBNWNd0iE" target="_blank" class="special-link"><i class="fab fa-whatsapp" style="font-size:30px;"></i><span>Чат Старост</span></a>`;
+            return;
+        }
+
+        const filtered = groups[currentTab].filter(s => s.name.toLowerCase().includes(query));
+        document.getElementById('countLabel').innerText = `Всего: ${filtered.length}`;
+
+        filtered.forEach((s, idx) => {
+            const isBoss = (s.type === 'starosta' || s.type === 'zam');
+            const dotClass = s.type === 'starosta' ? 'dot-starosta' : (s.type === 'zam' ? 'dot-zam' : 'dot');
+
+            list.innerHTML += `
+                <div class="student-card">
+                    <div class="name-info">
+                        <div class="dot ${dotClass}"></div>
+                        <div>
+                            <div style="font-size:10px; color:var(--subtext); font-weight:800; text-transform:uppercase;">${s.role}</div>
+                            <div style="font-weight:700;">${s.name}</div>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        ${(isBoss && s.phone) ? `
+                            <a href="tel:+${s.phone}" class="btn btn-call"><i class="fas fa-phone"></i></a>
+                            <a href="https://wa.me/${s.phone}" target="_blank" class="btn btn-wa"><i class="fab fa-whatsapp"></i></a>
+                        ` : ''}
+                        <button onclick="del(${idx})" class="btn btn-del"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>`;
+        });
+    };
+
+    window.addStudent = () => {
+        const n = document.getElementById('newName');
+        if (!n.value) return;
+        groups[currentTab].push({name: n.value, role: "Студент", type: "student"});
+        n.value = "";
+        set(dbRef, groups);
+    };
+
+    window.del = (i) => {
+        if(confirm("Удалить студента?")) {
+            groups[currentTab].splice(i, 1);
+            set(dbRef, groups);
+        }
+    };
+
+    window.toggleTheme = () => {
+        const b = document.body;
+        const isDark = b.getAttribute('data-theme') === 'dark';
+        b.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('themeBtn').innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+    };
+
+    window.copyList = () => {
+        const t = groups[currentTab].map(s => s.name).join('\n');
+        navigator.clipboard.writeText(t);
+        alert("Список скопирован!");
+    };
+</script>
+
+</body>
+</html>
